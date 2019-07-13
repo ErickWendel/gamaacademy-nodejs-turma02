@@ -1,0 +1,132 @@
+<html>
+    <head>
+        <title>Consumindo API</title>
+        <script src="node_modules/axios/dist/axios.min.js"></script>
+        
+    </head>
+    <body>
+        
+        <output id="dados">
+            Carregando...
+        </output>
+
+        <script>
+            // npm init -y
+            // npm i axios
+            // npm i -g http-server
+            const URL_BASE= 'https://aline-heroisapi.herokuapp.com/v1/'
+            // const URL_BASE= 'https://xuxaapi-herois.herokuapp.com/v1/'
+            function alterarTexto(texto, append = true) {
+                const output = document.getElementById('dados')
+                if(!append)
+                {
+                    output.innerHTML = texto
+                    return;
+                }
+                output.innerHTML = output.innerHTML + '<br/>' + texto
+                
+            }
+            async function request(url, dado, method, headers) {
+                let requisicao = {}
+                if(method === 'get' || method === 'delete') 
+                    requisicao = axios[method](URL_BASE + url, headers)
+                else 
+                    requisicao = axios[method](URL_BASE + url, dado, headers)
+                
+                const { data } = await requisicao
+                return data;
+            }
+            
+            function formatarLista(lista, index) {
+                const listaFormatada = lista.map(heroi => {
+                    const resultado = `
+                    <strong>Nome</strong>: ${heroi.nome}<br/>
+                    <strong>Poder</strong>: ${heroi.poder}<br/>
+                    <strong>Idade</strong>: ${heroi.idade}<br/>
+                    <strong>Id</strong>: ${heroi._id}
+                    `
+                    return resultado
+                })
+                const final = `
+                <fieldset>
+                <legend>
+                <strong>Batch</strong>: ${index} <br/>
+                </legend>
+                ${listaFormatada}
+                </fieldset>
+                `
+                alterarTexto(final)
+            }
+            async function main() {
+                const user = {
+                    usuario: 'chapolin',
+                    senha: '123'
+                }
+                let steps = 0
+                alterarTexto(`[${steps++}] Carregando token...`, false)
+                // const { token } = await request('login', user, 'post', {})
+                const token  = await request('login', user, 'post', {})
+                alterarTexto(`[${steps++}] Token carregado com sucesso! ` + token)
+                const headers = {
+                    headers: {
+                        Authorization: token
+                    }
+                }
+                const heroi = {
+                    nome: 'Batman 007',
+                    poder: 'rich',
+                    idade: 30
+                }
+                const cadastrar = await request('herois', 
+                                                heroi, 
+                                                'post', 
+                                                headers)
+                alterarTexto(`[${steps++}] Heroi cadastrado com sucesso!`)
+                console.log('resposta cadastrar', cadastrar)
+                const [hominho] = await request(
+                    `herois?nome=${heroi.nome}`, {}, 'get', headers
+                )
+                console.log('resposta obter um usuario', hominho)
+                
+                const atualizar = await request(
+                    `herois/${hominho._id}`, 
+                    { nome: 'hominho'}, 
+                    'patch', headers
+                )
+                alterarTexto(`[${steps++}] Heroi atualizado com sucesso!`)
+                console.log('resposta atualizar usuario', atualizar)
+
+                const remover = await request(
+                    `herois/${hominho._id}`,
+                    null, 
+                    'delete',
+                    headers
+                )
+                alterarTexto(`[${steps++}] Heroi removido com sucesso!`)
+                console.log('resposta remover usuario', remover)
+
+                
+                // vamos paginar os resultados e apendar no body
+                const requestTime = 10
+                let skip = 0
+                const TOTAL_POR_PAGINA = 10
+                for(i =0; i< requestTime; i++) {
+
+                    const listar = await request(`herois?skip=${skip}`, 
+                                                {}, 
+                                                'get',
+                                                headers)
+                    if(listar.length ===0)
+                        break
+                    
+                    skip += TOTAL_POR_PAGINA
+                    formatarLista(listar, i + 1)
+
+                }
+
+
+            }
+            main()
+        </script>
+    </body>
+</html>
